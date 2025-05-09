@@ -1,13 +1,12 @@
 package com.example.EVCharge.controllers;
+
 import com.example.EVCharge.models.Role;
 import com.example.EVCharge.models.User;
 import com.example.EVCharge.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 public class AuthController {
@@ -15,29 +14,25 @@ public class AuthController {
     @Autowired
     private UserRepository userRepository;
 
-    @PostMapping("/api/auth/login")  // ОБОВʼЯЗКОВО!
+    @Autowired
+    private PasswordEncoder passwordEncoder;  // Обовʼязково
+
+    @PostMapping("/api/auth/login")
     public ResponseEntity<?> login(@RequestBody UserCredentials credentials) {
         User user = userRepository.findByUsername(credentials.getUsername());
 
-        if (user != null && user.getPassword().equals(credentials.getPassword())) {
-            String redirectUrl = "/user.html";  // Если пользователь авторизован, редирект на user.html
-
-            if (user.getRole().equals(Role.ADMIN)) {
-                redirectUrl = "/admin.html";  // Если это админ, редирект на admin.html
-            }
-
-            return ResponseEntity.ok(new LoginResponse(true, redirectUrl));  // Успешный ответ с редиректом
+        if (user != null && passwordEncoder.matches(credentials.getPassword(), user.getPassword())) {
+            String redirectUrl = user.getRole().equals(Role.ADMIN) ? "/admin.html" : "/user.html";
+            return ResponseEntity.ok(new LoginResponse(true, redirectUrl));
         } else {
-            return ResponseEntity.ok(new LoginResponse(false, ""));  // Ошибка авторизации
+            return ResponseEntity.ok(new LoginResponse(false, ""));
         }
     }
 
-    // Вспомогательный класс для передачи данных из тела запроса
     public static class UserCredentials {
         private String username;
         private String password;
 
-        // Геттеры и сеттеры
         public String getUsername() {
             return username;
         }
@@ -55,7 +50,6 @@ public class AuthController {
         }
     }
 
-    // Вспомогательный класс для ответа от сервера
     public static class LoginResponse {
         private boolean success;
         private String redirectUrl;
