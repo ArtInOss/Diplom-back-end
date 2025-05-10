@@ -11,7 +11,7 @@ import java.util.Date;
 @Component
 public class JwtUtil {
 
-    private final long expirationMs = 3600000; // 1 година
+    private final long expirationMs = 60000; // 1 година
     private final Key key = Keys.secretKeyFor(SignatureAlgorithm.HS256);
 
     public String generateToken(String username, String role) {

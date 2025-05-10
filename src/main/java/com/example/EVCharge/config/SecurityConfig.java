@@ -29,7 +29,7 @@ public class SecurityConfig {
                 .cors().and()
                 .csrf().disable()
                 .authorizeHttpRequests()
-                .requestMatchers("/api/auth/login").permitAll() // дозволяємо вхід всім
+                .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()// дозволяємо вхід всім
                 .requestMatchers("/api/admin/**").hasRole("ADMIN") // тільки адміну
                 .requestMatchers("/api/user/**").hasRole("USER")
                 .anyRequest().authenticated(); // решта — за токеном
