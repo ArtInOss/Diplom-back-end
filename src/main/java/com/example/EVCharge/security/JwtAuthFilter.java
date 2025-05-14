@@ -41,7 +41,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 System.out.println("JWT username: " + username);
                 System.out.println("JWT role: " + role);
 
-                // Тепер додаємо роль як SimpleGrantedAuthority
+                // Додаємо префікс ROLE_ для ролі
                 List<SimpleGrantedAuthority> authorities =
                         Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role));
 

@@ -29,11 +29,10 @@ public class SecurityConfig {
                 .cors().and()
                 .csrf().disable()
                 .authorizeHttpRequests()
-                .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()// дозволяємо вхід всім
-                .requestMatchers("/api/admin/**").hasRole("ADMIN") // тільки адміну
-                .requestMatchers("/api/user/**").hasRole("USER")
-                .anyRequest().authenticated(); // решта — за токеном
-
+                .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
+                .requestMatchers("/api/admin/**").hasRole("ADMIN")  // Використовуємо hasRole
+                .requestMatchers("/api/user/**").hasRole("USER")   // Використовуємо hasRole
+                .anyRequest().authenticated();
         http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
