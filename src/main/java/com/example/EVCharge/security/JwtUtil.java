@@ -22,6 +22,7 @@ public class JwtUtil {
                 .setExpiration(new Date(System.currentTimeMillis() + expirationMs))
                 .signWith(key)
                 .compact();
+
     }
 
     public boolean validateToken(String token) {
@@ -29,6 +30,7 @@ public class JwtUtil {
             Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
             return true;
         } catch (JwtException e) {
+
             return false;
         }
     }
