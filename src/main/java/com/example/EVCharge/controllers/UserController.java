@@ -1,7 +1,7 @@
 package com.example.EVCharge.controllers;
 
-import com.example.EVCharge.service.UserService;
 import com.example.EVCharge.models.User;
+import com.example.EVCharge.service.ProfileService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -10,24 +10,21 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/user")
-public class
-UserController {
+public class UserController {
 
     @Autowired
-    private UserService userService;
+    private ProfileService profileService;
 
     // Отримання поточного профілю
     @GetMapping("/profile")
     public ResponseEntity<?> getProfile(Authentication authentication) {
         String username = authentication.getName();
-        User user = userService.getUserProfile(username);
+        User user = profileService.getProfile(username);
 
-        // Якщо користувач не знайдений, повертаємо 404
         if (user == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Користувача не знайдено");
         }
 
-        // Якщо користувач знайдений, повертаємо його профіль
         return ResponseEntity.ok(new UserDTO(
                 user.getFirstName(),
                 user.getLastName(),
@@ -39,14 +36,15 @@ UserController {
     @PutMapping("/profile")
     public ResponseEntity<?> updateProfile(@RequestBody UserDTO updatedData, Authentication authentication) {
         String username = authentication.getName();
-        User updatedUser = userService.updateUserProfile(username, updatedData.getFirstName(), updatedData.getLastName(), updatedData.getUsername());
+        User updatedUser = profileService.updateProfile(username,
+                updatedData.getFirstName(),
+                updatedData.getLastName(),
+                updatedData.getUsername());
 
-        // Якщо користувач не знайдений, повертаємо 404
         if (updatedUser == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Користувача не знайдено");
         }
 
-        // Якщо профіль оновлено, повертаємо повідомлення про успіх
         return ResponseEntity.ok("Дані профілю оновлено");
     }
 

@@ -70,16 +70,7 @@ public class UserService {
     }
 
     // Оновлення профілю користувача
-    public User updateUserProfile(String username, String firstName, String lastName, String newUsername) {
-        User user = userRepository.findByUsername(username);
-        if (user != null) {
-            user.setFirstName(firstName);
-            user.setLastName(lastName);
-            user.setUsername(newUsername);
-            return userRepository.save(user);
-        }
-        return null;
-    }
+
     private boolean isStrongPassword(String password) {
         // Перевірка на наявність хоча б однієї великої літери, маленької літери, цифри
         return password.matches(".*[A-Z].*") &&   // Велика буква
