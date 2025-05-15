@@ -27,22 +27,13 @@ public class AuthService {
         String username = credentials.getUsername();
         String password = credentials.getPassword();
 
-        // 🔐 Перевірка на порожність
-        if (username == null || username.trim().isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Логін не може бути порожнім");
-        }
-
-        if (password == null || password.trim().isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Пароль не може бути порожнім");
-        }
-
-        // 🔍 Перевірка користувача і пароля
+        // 🔍 Перевірка існування користувача і валідності пароля
         User user = userRepository.findByUsername(username);
         if (user == null || !passwordEncoder.matches(password, user.getPassword())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Невірний логін або пароль");
         }
 
-        // 🔑 Генерація токена і визначення ролі
+        // 🔑 Генерація JWT токена
         String token = jwtUtil.generateToken(user.getUsername(), user.getRole().toString());
         String redirectUrl = switch (user.getRole()) {
             case ADMIN -> "/admin.html";

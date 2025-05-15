@@ -1,12 +1,17 @@
 package com.example.EVCharge.controllers;
 
+import com.example.EVCharge.dto.ProfileUpdateRequest;
 import com.example.EVCharge.models.User;
 import com.example.EVCharge.service.ProfileService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/user")
@@ -22,53 +27,38 @@ public class UserController {
         User user = profileService.getProfile(username);
 
         if (user == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Користувача не знайдено");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "Користувача не знайдено"));
         }
 
-        return ResponseEntity.ok(new UserDTO(
-                user.getFirstName(),
-                user.getLastName(),
-                user.getUsername()
+        return ResponseEntity.ok(Map.of(
+                "firstName", user.getFirstName(),
+                "lastName", user.getLastName(),
+                "username", user.getUsername()
         ));
     }
 
     // Оновлення профілю користувача
     @PutMapping("/profile")
-    public ResponseEntity<?> updateProfile(@RequestBody UserDTO updatedData, Authentication authentication) {
-        String username = authentication.getName();
-        User updatedUser = profileService.updateProfile(username,
-                updatedData.getFirstName(),
-                updatedData.getLastName(),
-                updatedData.getUsername());
-
-        if (updatedUser == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Користувача не знайдено");
+    public ResponseEntity<?> updateProfile(@Valid @RequestBody ProfileUpdateRequest request,
+                                           BindingResult result,
+                                           Authentication authentication) {
+        if (result.hasErrors()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "message", result.getAllErrors().get(0).getDefaultMessage()
+            ));
         }
 
-        return ResponseEntity.ok("Дані профілю оновлено");
-    }
+        String currentUsername = authentication.getName();
 
-    // DTO для передачі профілю користувача
-    public static class UserDTO {
-        private String firstName;
-        private String lastName;
-        private String username;
+        try {
+            User updatedUser = profileService.updateProfile(currentUsername, request);
+            if (updatedUser == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "Користувача не знайдено"));
+            }
 
-        public UserDTO() {}
-
-        public UserDTO(String firstName, String lastName, String username) {
-            this.firstName = firstName;
-            this.lastName = lastName;
-            this.username = username;
+            return ResponseEntity.ok(Map.of("message", "Дані профілю оновлено"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
-
-        public String getFirstName() { return firstName; }
-        public void setFirstName(String firstName) { this.firstName = firstName; }
-
-        public String getLastName() { return lastName; }
-        public void setLastName(String lastName) { this.lastName = lastName; }
-
-        public String getUsername() { return username; }
-        public void setUsername(String username) { this.username = username; }
     }
 }
