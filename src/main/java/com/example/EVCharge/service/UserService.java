@@ -19,52 +19,22 @@ public class UserService {
 
     // Реєстрація користувача
     public String registerUser(RegistrationRequest request) {
+        // Перевірка: логін уже зайнятий
         if (userRepository.findByUsername(request.getUsername()) != null) {
             return "Користувач з таким логіном вже існує!";
         }
-        if (request.getUsername() == null || request.getUsername().isEmpty()) {
-            return "Логін не може бути порожнім.";
-        }
-        if (!request.getUsername().matches("^[a-zA-Z0-9]+$")) {
-            return "Логін може містити тільки літери та цифри без пробілів і спеціальних знаків.";
-        }
-        if (request.getPassword() == null || request.getPassword().isEmpty()) {
-            return "Пароль не може бути порожнім.";
-        }
-        if (!isStrongPassword(request.getPassword())) {
-            return "Пароль має містити хоча б одну цифру, велику і маленьку літеру.";
-        }
-        if (!request.getPassword().matches("^[a-zA-Z0-9]+$")) {
-            return "Пароль може містити тільки літери, цифри без пробілів і спеціальних знаків.";
-        }
 
-
-        // Добавьте проверку на confirmPassword
-        if (request.getConfirmPassword() == null || request.getConfirmPassword().trim().isEmpty()) {
-            return "Підтвердження паролю не може бути порожнім.";
-        }
-        if (request.getUsername().length() > 20) {
-            return "Логін не може перевищувати 20 символів.";
-        }
-
-        if (request.getPassword().length() > 20) {
-            return "Пароль не може перевищувати 20 символів.";
-        }
-
-        if (!request.getPassword().trim().equals(request.getConfirmPassword().trim())) {
+        // Перевірка: паролі мають співпадати
+        if (!request.getPassword().equals(request.getConfirmPassword())) {
             return "Паролі не співпадають.";
         }
 
-        if (request.getPassword().length() < 6) {
-            return "Пароль має містити щонайменше 6 символів.";
-        }
-
+        // Створення користувача
         User newUser = new User();
         newUser.setUsername(request.getUsername());
         newUser.setPassword(passwordEncoder.encode(request.getPassword()));
-        newUser.setFirstName(request.getFirstName());
-        newUser.setLastName(request.getLastName());
-        newUser.setRole(Role.USER); // или другая логика для роли
+
+        newUser.setRole(Role.USER);
 
         userRepository.save(newUser);
 
@@ -74,14 +44,5 @@ public class UserService {
     // Отримання профілю користувача
     public User getUserProfile(String username) {
         return userRepository.findByUsername(username);
-    }
-
-    // Оновлення профілю користувача
-
-    private boolean isStrongPassword(String password) {
-        // Перевірка на наявність хоча б однієї великої літери, маленької літери, цифри
-        return password.matches(".*[A-Z].*") &&   // Велика буква
-                password.matches(".*[a-z].*") &&   // Мала буква
-                password.matches(".*\\d.*");       // Цифра
     }
 }
