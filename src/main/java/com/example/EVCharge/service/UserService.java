@@ -43,6 +43,13 @@ public class UserService {
         if (request.getConfirmPassword() == null || request.getConfirmPassword().trim().isEmpty()) {
             return "Підтвердження паролю не може бути порожнім.";
         }
+        if (request.getUsername().length() > 20) {
+            return "Логін не може перевищувати 20 символів.";
+        }
+
+        if (request.getPassword().length() > 20) {
+            return "Пароль не може перевищувати 20 символів.";
+        }
 
         if (!request.getPassword().trim().equals(request.getConfirmPassword().trim())) {
             return "Паролі не співпадають.";
