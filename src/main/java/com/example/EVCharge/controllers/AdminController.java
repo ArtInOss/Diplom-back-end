@@ -98,4 +98,25 @@ public class AdminController {
         List<User> users = userService.getAllUsersWithRoleUser();
         return ResponseEntity.ok(users);
     }
+    @PutMapping("/users/{id}")
+    public ResponseEntity<?> updateUserByAdmin(
+            @PathVariable Long id,
+            @Valid @RequestBody ProfileUpdateRequest request,
+            BindingResult result
+    ) {
+        if (result.hasErrors()) {
+            Map<String, String> errors = new HashMap<>();
+            result.getFieldErrors().forEach(error ->
+                    errors.put(error.getField(), error.getDefaultMessage())
+            );
+            return ResponseEntity.badRequest().body(Map.of("errors", errors));
+        }
+
+        try {
+            adminProfileService.updateAnyUserById(id, request);  // ДЕЛЕГУЄМО СЮДИ
+            return ResponseEntity.ok(Map.of("message", "Користувача оновлено"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
 }
