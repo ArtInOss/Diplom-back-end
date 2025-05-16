@@ -17,9 +17,9 @@ public class DataInitializer {
 
 
             // Створення ADMIN, якщо не існує
-            if (userRepository.findByUsername("adminuser") == null) {
+            if (userRepository.findByUsername("adminuser2") == null) {
                 User admin = new User();
-                admin.setUsername("adminuser");
+                admin.setUsername("adminuser2");
                 admin.setFirstName("Admin");
                 admin.setLastName("User");
                 admin.setRole(Role.ADMIN);

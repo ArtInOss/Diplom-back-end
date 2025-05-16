@@ -10,16 +10,22 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
+import com.example.EVCharge.service.UserService;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+
 
 @RestController
 @RequestMapping("/api/admin")
+
 public class AdminController {
 
     @Autowired
     private AdminProfileService adminProfileService;
+    @Autowired
+    private UserService userService;
 
     // Отримати профіль адміністратора
     @GetMapping("/profile")
@@ -86,5 +92,10 @@ public class AdminController {
         public String getUsername() {
             return username;
         }
+    }
+    @GetMapping("/users")
+    public ResponseEntity<List<User>> getUsersWithRoleUser() {
+        List<User> users = userService.getAllUsersWithRoleUser();
+        return ResponseEntity.ok(users);
     }
 }
