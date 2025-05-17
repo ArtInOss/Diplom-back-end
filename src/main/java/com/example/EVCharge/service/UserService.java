@@ -51,5 +51,12 @@ public class UserService {
     public List<User> getAllUsersWithRoleUser() {
         return userRepository.findAllByRole(Role.USER);
     }
+    public boolean deleteUserById(Long id) {
+        if (!userRepository.existsById(id)) {
+            return false;
+        }
+        userRepository.deleteById(id);
+        return true;
+    }
 }
 
