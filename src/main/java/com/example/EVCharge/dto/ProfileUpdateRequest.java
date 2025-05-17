@@ -7,13 +7,12 @@ import jakarta.validation.constraints.Size;
 public class ProfileUpdateRequest {
 
 
-    @Size( max = 30, message = "Ім’я має містити від 6 до 30 символів")
-    @Pattern(regexp = "^[А-Яа-яЇїІіЄєA-Za-z\\-ʼ’]+$", message = "Ім’я може містити тільки літери")
+    @Size(max = 30, message = "Ім’я не може бути довшим за 30 символів")
+    @Pattern(regexp = "^[А-Яа-яЇїІіЄєA-Za-z\\-ʼ’]*$", message = "Ім’я може містити тільки літери")
     private String firstName;
 
-
-    @Size( max = 30, message = "Прізвище має містити від 6 до 30 символів")
-    @Pattern(regexp = "^[А-Яа-яЇїІіЄєA-Za-z\\-ʼ’]+$", message = "Прізвище може містити тільки літери")
+    @Size(max = 30, message = "Прізвище не може бути довшим за 30 символів")
+    @Pattern(regexp = "^[А-Яа-яЇїІіЄєA-Za-z\\-ʼ’]*$", message = "Прізвище може містити тільки літери")
     private String lastName;
 
     @NotBlank(message = "Логін не може бути порожнім")
