@@ -31,7 +31,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests()
                 .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")  // Використовуємо hasRole
-                .requestMatchers("/api/user/**").hasRole("USER")   // Використовуємо hasRole
+                .requestMatchers("/api/user/**").hasRole("USER")
+                .requestMatchers("/api/stations/**").hasRole("ADMIN")// Використовуємо hasRole
                 .anyRequest().authenticated();
         http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
