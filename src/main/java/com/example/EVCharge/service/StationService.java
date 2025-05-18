@@ -41,6 +41,9 @@ public class StationService {
         if (!hasValidConnector) {
             throw new RuntimeException("Список конекторів не може бути повністю порожнім.");
         }
+        if (stationRepository.existsByLatitudeAndLongitude(station.getLatitude(), station.getLongitude())) {
+            throw new RuntimeException("Станція з такими координатами вже існує!");
+        }
 
         return stationRepository.save(station);
     }

@@ -9,4 +9,5 @@ public interface StationRepository extends JpaRepository<Station, Long> {
     // Додаткові методи при потребі, наприклад:
     // List<Station> findByStatus(StationStatus status);
     boolean existsByLocationName(String locationName);
+    boolean existsByLatitudeAndLongitude(double latitude, double longitude);
 }
