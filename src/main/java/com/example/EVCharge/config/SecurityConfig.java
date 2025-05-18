@@ -4,6 +4,8 @@ import com.example.EVCharge.security.JwtAuthFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -18,6 +20,7 @@ import java.util.Arrays;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
 
     @Autowired
@@ -29,10 +32,15 @@ public class SecurityConfig {
                 .cors().and()
                 .csrf().disable()
                 .authorizeHttpRequests()
-                .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
-                .requestMatchers("/api/admin/**").hasRole("ADMIN")  // Використовуємо hasRole
+                // ✅ 1. сначала разрешаем GET всем авторизованным
+                .requestMatchers(HttpMethod.GET, "/api/stations").hasAnyRole("ADMIN", "USER")
+
+                // ✅ 2. потом ограничиваем всё остальное под /api/stations/**
+                .requestMatchers("/api/stations/**").hasRole("ADMIN")
+
+                .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers("/api/user/**").hasRole("USER")
-                .requestMatchers("/api/stations/**").hasRole("ADMIN")// Використовуємо hasRole
+                .requestMatchers("/api/auth/**").permitAll()
                 .anyRequest().authenticated();
         http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 

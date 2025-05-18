@@ -11,6 +11,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
 
+import java.util.Collections;
+import java.util.List;
+
 @Service
 public class AuthService {
 
@@ -27,13 +30,11 @@ public class AuthService {
         String username = credentials.getUsername();
         String password = credentials.getPassword();
 
-        // 🔍 Перевірка існування користувача і валідності пароля
         User user = userRepository.findByUsername(username);
         if (user == null || !passwordEncoder.matches(password, user.getPassword())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Невірний логін або пароль");
         }
 
-        // 🔑 Генерація JWT токена
         String token = jwtUtil.generateToken(user.getUsername(), user.getRole().toString());
         String redirectUrl = switch (user.getRole()) {
             case ADMIN -> "/admin.html";
@@ -42,5 +43,18 @@ public class AuthService {
         };
 
         return new LoginResponse(true, redirectUrl, token);
+    }
+
+    public boolean validateToken(String token) {
+        return jwtUtil.validateToken(token);
+    }
+
+    public String extractUsername(String token) {
+        return jwtUtil.getUsernameFromToken(token);
+    }
+
+    public List<String> extractRoles(String token) {
+        String role = jwtUtil.getRoleFromToken(token);
+        return role != null ? List.of(role) : Collections.emptyList();
     }
 }

@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
@@ -20,7 +21,8 @@ public class UserController {
     @Autowired
     private ProfileService profileService;
 
-    // Отримання поточного профілю
+    // 🔐 Доступ тільки для USER
+    @PreAuthorize("hasRole('USER')")
     @GetMapping("/profile")
     public ResponseEntity<?> getProfile(Authentication authentication) {
         String username = authentication.getName();
@@ -37,7 +39,8 @@ public class UserController {
         ));
     }
 
-    // Оновлення профілю користувача
+    // 🔐 Доступ тільки для USER
+    @PreAuthorize("hasRole('USER')")
     @PutMapping("/profile")
     public ResponseEntity<?> updateProfile(@Valid @RequestBody ProfileUpdateRequest request,
                                            BindingResult result,

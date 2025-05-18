@@ -15,13 +15,13 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
-
 @RequestMapping("/api/stations")
 public class StationController {
 
     @Autowired
     private StationService stationService;
 
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     @GetMapping
     public ResponseEntity<List<StationResponse>> getAllStations() {
         List<StationResponse> stations = stationService.getAllStations()
@@ -31,6 +31,7 @@ public class StationController {
         return ResponseEntity.ok(stations);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/{id}")
     public ResponseEntity<?> getStationById(@PathVariable Long id) {
         return stationService.getStationById(id)
@@ -38,6 +39,7 @@ public class StationController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<?> addStation(@Valid @RequestBody StationRequest request) {
         try {
@@ -50,6 +52,7 @@ public class StationController {
         }
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<?> updateStation(@PathVariable Long id, @Valid @RequestBody StationRequest request) {
         try {
@@ -60,6 +63,7 @@ public class StationController {
         }
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteStation(@PathVariable Long id) {
         stationService.deleteStation(id);
@@ -101,5 +105,4 @@ public class StationController {
         station.setLatitude(request.getLatitude());
         station.setLongitude(request.getLongitude());
     }
-
 }
