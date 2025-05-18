@@ -1,6 +1,7 @@
 package com.example.EVCharge.controllers;
 
 import com.example.EVCharge.dto.RegistrationRequest;
+import com.example.EVCharge.models.Role;
 import com.example.EVCharge.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,22 +20,19 @@ public class RegistrationController {
 
     @PostMapping("/register")
     public ResponseEntity<?> registerUser(@Valid @RequestBody RegistrationRequest request, BindingResult result) {
-        // 🔍 Перевірка валідації DTO
         if (result.hasErrors()) {
             String errorMessage = result.getAllErrors().get(0).getDefaultMessage();
             return ResponseEntity.badRequest().body(Map.of("message", errorMessage));
         }
 
-        // 👉 Перевірка з сервісу (чи користувач існує, чи паролі однакові)
-        String message = userService.registerUser(request);
-
-        if (!message.equals("Реєстрація пройшла успішно!")) {
-            return ResponseEntity.badRequest().body(Map.of("message", message));
+        try {
+            userService.registerUser(request, Role.USER);
+            return ResponseEntity.ok(Map.of(
+                    "message", "Реєстрація пройшла успішно!",
+                    "redirectUrl", "/authorization.html"
+            ));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
-
-        return ResponseEntity.ok(Map.of(
-                "message", message,
-                "redirectUrl", "/authorization.html"
-        ));
     }
 }

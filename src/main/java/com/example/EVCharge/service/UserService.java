@@ -21,27 +21,21 @@ public class UserService {
     private PasswordEncoder passwordEncoder;
 
     // Реєстрація користувача
-    public String registerUser(RegistrationRequest request) {
-        // Перевірка: логін уже зайнятий
+    public void registerUser(RegistrationRequest request, Role role) {
         if (userRepository.findByUsername(request.getUsername()) != null) {
-            return "Користувач з таким логіном вже існує!";
+            throw new RuntimeException("Користувач з таким логіном вже існує!");
         }
 
-        // Перевірка: паролі мають співпадати
         if (!request.getPassword().equals(request.getConfirmPassword())) {
-            return "Паролі не співпадають.";
+            throw new RuntimeException("Паролі не співпадають.");
         }
 
-        // Створення користувача
         User newUser = new User();
         newUser.setUsername(request.getUsername());
         newUser.setPassword(passwordEncoder.encode(request.getPassword()));
-
-        newUser.setRole(Role.USER);
+        newUser.setRole(role);
 
         userRepository.save(newUser);
-
-        return "Реєстрація пройшла успішно!";
     }
 
     // Отримання профілю користувача

@@ -1,6 +1,8 @@
 package com.example.EVCharge.controllers;
 
 import com.example.EVCharge.dto.ProfileUpdateRequest;
+import com.example.EVCharge.dto.RegistrationRequest;
+import com.example.EVCharge.models.Role;
 import com.example.EVCharge.models.User;
 import com.example.EVCharge.service.AdminProfileService;
 import jakarta.validation.Valid;
@@ -93,11 +95,13 @@ public class AdminController {
             return username;
         }
     }
+
     @GetMapping("/users")
     public ResponseEntity<List<User>> getUsersWithRoleUser() {
         List<User> users = userService.getAllUsersWithRoleUser();
         return ResponseEntity.ok(users);
     }
+
     @PutMapping("/users/{id}")
     public ResponseEntity<?> updateUserByAdmin(
             @PathVariable Long id,
@@ -119,6 +123,7 @@ public class AdminController {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
     }
+
     @DeleteMapping("/users/{id}")
     public ResponseEntity<?> deleteUser(@PathVariable Long id) {
         boolean deleted = userService.deleteUserById(id);
@@ -127,6 +132,24 @@ public class AdminController {
             return ResponseEntity.ok(Map.of("message", "Користувача успішно видалено"));
         } else {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "Користувача не знайдено"));
+        }
+    }
+
+    @PostMapping("/users")
+    public ResponseEntity<?> addUser(@Valid @RequestBody RegistrationRequest request, BindingResult result) {
+        if (result.hasErrors()) {
+            Map<String, String> errors = new HashMap<>();
+            result.getFieldErrors().forEach(error ->
+                    errors.put(error.getField(), error.getDefaultMessage()));
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errors);
+        }
+
+        try {
+            userService.registerUser(request, Role.USER);
+            return ResponseEntity.ok(Map.of("message", "Користувача успішно додано"));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("message", e.getMessage()));
         }
     }
 }
