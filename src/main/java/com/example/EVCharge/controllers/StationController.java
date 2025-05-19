@@ -10,6 +10,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.FieldError;
+
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -41,7 +44,17 @@ public class StationController {
 
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
-    public ResponseEntity<?> addStation(@Valid @RequestBody StationRequest request) {
+    public ResponseEntity<?> addStation(@Valid @RequestBody StationRequest request, BindingResult result) {
+        if (result.hasErrors()) {
+            Map<String, String> errors = result.getFieldErrors().stream()
+                    .collect(Collectors.toMap(
+                            FieldError::getField,
+                            FieldError::getDefaultMessage,
+                            (e1, e2) -> e1 // если дубликаты полей — берём первый
+                    ));
+            return ResponseEntity.badRequest().body(Map.of("validationErrors", errors));
+        }
+
         try {
             Station station = new Station();
             applyRequestToStation(station, request);
@@ -54,12 +67,22 @@ public class StationController {
 
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateStation(@PathVariable Long id, @Valid @RequestBody StationRequest request) {
+    public ResponseEntity<?> updateStation(@PathVariable Long id, @Valid @RequestBody StationRequest request, BindingResult result) {
+        if (result.hasErrors()) {
+            Map<String, String> errors = result.getFieldErrors().stream()
+                    .collect(Collectors.toMap(
+                            FieldError::getField,
+                            FieldError::getDefaultMessage,
+                            (e1, e2) -> e1
+                    ));
+            return ResponseEntity.badRequest().body(Map.of("validationErrors", errors));
+        }
+
         try {
             Station updated = stationService.updateStation(id, toEntity(request));
             return ResponseEntity.ok(toResponse(updated));
         } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
     }
 
@@ -93,7 +116,7 @@ public class StationController {
         );
     }
 
-    // 🔁 Загальна логіка оновлення Station з DTO
+    // 🔁 Записати DTO в сутність
     private void applyRequestToStation(Station station, StationRequest request) {
         station.setLocationName(request.getLocationName());
         station.setAddress(request.getAddress());

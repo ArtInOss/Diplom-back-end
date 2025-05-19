@@ -7,12 +7,17 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class StationService {
 
     @Autowired
     private StationRepository stationRepository;
+
+    // ✅ Допустимі типи конекторів
+    private static final Set<String> ALLOWED_CONNECTORS = Set.of("CCS2", "CHADEMO", "GB/T");
 
     public List<Station> getAllStations() {
         return stationRepository.findAll();
@@ -23,24 +28,16 @@ public class StationService {
     }
 
     public Station addStation(Station station) {
-        // 🔒 Перевірка унікальності назви локації
         if (stationRepository.existsByLocationName(station.getLocationName())) {
             throw new RuntimeException("Станція з такою назвою вже існує!");
         }
 
-        // ⚠️ Перевірка: connectors не може бути порожнім
         if (station.getConnectors() == null || station.getConnectors().trim().isEmpty()) {
             throw new RuntimeException("Потрібно вказати хоча б один конектор.");
         }
 
-        // ⚠️ Перевірка: чи є хоча б один непорожній конектор у списку
-        boolean hasValidConnector = List.of(station.getConnectors().split(","))
-                .stream()
-                .anyMatch(conn -> !conn.trim().isEmpty());
+        validateConnectors(station.getConnectors());
 
-        if (!hasValidConnector) {
-            throw new RuntimeException("Список конекторів не може бути повністю порожнім.");
-        }
         if (stationRepository.existsByLatitudeAndLongitude(station.getLatitude(), station.getLongitude())) {
             throw new RuntimeException("Станція з такими координатами вже існує!");
         }
@@ -55,6 +52,20 @@ public class StationService {
     public Station updateStation(Long id, Station updatedStation) {
         return stationRepository.findById(id)
                 .map(existingStation -> {
+                    if (!updatedStation.getLocationName().equalsIgnoreCase(existingStation.getLocationName()) &&
+                            stationRepository.existsByLocationName(updatedStation.getLocationName())) {
+                        throw new RuntimeException("Станція з такою назвою вже існує!");
+                    }
+
+                    if ((updatedStation.getLatitude() != existingStation.getLatitude() ||
+                            updatedStation.getLongitude() != existingStation.getLongitude()) &&
+                            stationRepository.existsByLatitudeAndLongitude(updatedStation.getLatitude(), updatedStation.getLongitude())) {
+                        throw new RuntimeException("Станція з такими координатами вже існує!");
+                    }
+
+                    // ✅ Валідація конекторів
+                    validateConnectors(updatedStation.getConnectors());
+
                     existingStation.setLocationName(updatedStation.getLocationName());
                     existingStation.setAddress(updatedStation.getAddress());
                     existingStation.setPowerKw(updatedStation.getPowerKw());
@@ -62,8 +73,30 @@ public class StationService {
                     existingStation.setManufacturer(updatedStation.getManufacturer());
                     existingStation.setPricePerKwh(updatedStation.getPricePerKwh());
                     existingStation.setStatus(updatedStation.getStatus());
+                    existingStation.setLatitude(updatedStation.getLatitude());
+                    existingStation.setLongitude(updatedStation.getLongitude());
+
                     return stationRepository.save(existingStation);
                 })
                 .orElseThrow(() -> new RuntimeException("Станцію не знайдено"));
+    }
+
+    // 🔍 Перевірка валідності всіх конекторів
+    private void validateConnectors(String connectors) {
+        List<String> list = List.of(connectors.split(",")).stream()
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toList());
+
+        if (list.isEmpty()) {
+            throw new RuntimeException("Потрібно вказати хоча б один валідний конектор.");
+        }
+
+        for (String connector : list) {
+            String upper = connector.toUpperCase();
+            if (!ALLOWED_CONNECTORS.contains(upper)) {
+                throw new RuntimeException("Недопустимий тип конектора: " + connector);
+            }
+        }
     }
 }
