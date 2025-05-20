@@ -101,48 +101,67 @@ public class StationService {
     }
 
     // ✅ Новый метод: фильтрация по фильтрам с формы
-    public List<StationResponse> filterStations(StationFilterRequest request) {
-        List<Station> allStations = stationRepository.findAll();
+    public List<StationResponse> filterStations(StationFilterRequest filter) {
+        List<Station> filtered = stationRepository.findAll().stream()
+                .filter(station -> {
+                    // фильтрация по коннекторам
+                    if (filter.getConnectors() != null && !filter.getConnectors().isEmpty()) {
+                        boolean matches = filter.getConnectors().stream()
+                                .anyMatch(conn -> station.getConnectors().toUpperCase().contains(conn.toUpperCase()));
+                        if (!matches) return false;
+                    }
 
-        // 🔹 Фильтрация по коннекторам
-        if (request.getConnectors() != null && !request.getConnectors().isEmpty()) {
-            allStations = allStations.stream()
+                    // фильтрация по производителям
+                    if (filter.getManufacturers() != null && !filter.getManufacturers().isEmpty()) {
+                        if (!filter.getManufacturers().contains(station.getManufacturer())) return false;
+                    }
+
+                    // фильтрация по мощности
+                    if (filter.getMinPower() != null && station.getPowerKw() < filter.getMinPower()) return false;
+
+                    // фильтрация по цене
+                    if (filter.getMaxPricePerKwh() != null && station.getPricePerKwh() > filter.getMaxPricePerKwh()) return false;
+
+                    return true;
+                })
+                .collect(Collectors.toList());
+
+        // Фильтрация по запасу ходу с учётом расстояния
+        if (filter.getUserLat() != null && filter.getUserLng() != null && filter.getRangeKm() != null) {
+            final double lat = filter.getUserLat();
+            final double lng = filter.getUserLng();
+            final int rangeKm = filter.getRangeKm();
+            final double correctionFactor = 1.2; // коэффициент погрешности маршрута
+
+            filtered = filtered.stream()
                     .filter(station -> {
-                        List<String> stationConnectors = Arrays.stream(station.getConnectors().split(","))
-                                .map(String::trim)
-                                .map(String::toUpperCase)
-                                .collect(Collectors.toList());
-                        return stationConnectors.stream()
-                                .anyMatch(request.getConnectors()::contains);
+                        double distance = calculateDistanceKm(lat, lng, station.getLatitude(), station.getLongitude());
+                        return distance * correctionFactor <= rangeKm;
                     })
                     .collect(Collectors.toList());
         }
 
-        // 🔹 Фильтрация по производителю
-        if (request.getManufacturers() != null && !request.getManufacturers().isEmpty()) {
-            allStations = allStations.stream()
-                    .filter(station -> request.getManufacturers().contains(station.getManufacturer()))
-                    .collect(Collectors.toList());
-        }
-
-        // 🔹 Фильтрация по мощности
-        if (request.getMinPower() != null) {
-            allStations = allStations.stream()
-                    .filter(station -> station.getPowerKw() >= request.getMinPower())
-                    .collect(Collectors.toList());
-        }
-
-        // 🔹 Фильтрация по цене
-        if (request.getMaxPricePerKwh() != null) {
-            allStations = allStations.stream()
-                    .filter(station -> station.getPricePerKwh() <= request.getMaxPricePerKwh())
-                    .collect(Collectors.toList());
-        }
-
-        return allStations.stream()
+        return filtered.stream()
                 .map(this::mapToStationResponse)
                 .collect(Collectors.toList());
     }
+
+    private double calculateDistanceKm(double lat1, double lon1, double lat2, double lon2) {
+        final int EARTH_RADIUS_KM = 6371;
+
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLon = Math.toRadians(lon2 - lon1);
+        double rLat1 = Math.toRadians(lat1);
+        double rLat2 = Math.toRadians(lat2);
+
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.sin(dLon / 2) * Math.sin(dLon / 2) * Math.cos(rLat1) * Math.cos(rLat2);
+
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+        return EARTH_RADIUS_KM * c;
+    }
+
 
     // ✅ Преобразование Station → StationResponse
     private StationResponse mapToStationResponse(Station station) {
@@ -156,6 +175,8 @@ public class StationService {
         response.setPricePerKwh(station.getPricePerKwh());
         response.setManufacturer(station.getManufacturer());
         response.setStatus(station.getStatus());
+        response.setAddress(station.getAddress());
         return response;
     }
+
 }
