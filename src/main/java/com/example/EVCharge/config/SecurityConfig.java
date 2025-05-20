@@ -32,12 +32,9 @@ public class SecurityConfig {
                 .cors().and()
                 .csrf().disable()
                 .authorizeHttpRequests()
-                // ✅ 1. сначала разрешаем GET всем авторизованным
+                .requestMatchers(HttpMethod.POST, "/api/stations/filter").permitAll() // 🟢 1. разрешить
                 .requestMatchers(HttpMethod.GET, "/api/stations").hasAnyRole("ADMIN", "USER")
-
-                // ✅ 2. потом ограничиваем всё остальное под /api/stations/**
-                .requestMatchers("/api/stations/**").hasRole("ADMIN")
-
+                .requestMatchers("/api/stations/**").hasRole("ADMIN") // 🔴 3. всё остальное — только админам
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers("/api/user/**").hasRole("USER")
                 .requestMatchers("/api/auth/**").permitAll()

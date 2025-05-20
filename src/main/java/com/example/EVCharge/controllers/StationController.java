@@ -1,5 +1,6 @@
 package com.example.EVCharge.controllers;
 
+import com.example.EVCharge.dto.StationFilterRequest;
 import com.example.EVCharge.dto.StationRequest;
 import com.example.EVCharge.dto.StationResponse;
 import com.example.EVCharge.models.Station;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -127,5 +129,19 @@ public class StationController {
         station.setStatus(request.getStatus());
         station.setLatitude(request.getLatitude());
         station.setLongitude(request.getLongitude());
+    }
+
+    @PostMapping("/filter")
+    public ResponseEntity<?> filterStations(@Valid @RequestBody StationFilterRequest filterRequest, BindingResult bindingResult) {
+        if (bindingResult.hasErrors()) {
+            Map<String, String> errors = new HashMap<>();
+            bindingResult.getFieldErrors().forEach(err -> {
+                errors.put(err.getField(), err.getDefaultMessage());
+            });
+            return ResponseEntity.badRequest().body(errors);
+        }
+
+        List<StationResponse> result = stationService.filterStations(filterRequest);
+        return ResponseEntity.ok(result);
     }
 }
