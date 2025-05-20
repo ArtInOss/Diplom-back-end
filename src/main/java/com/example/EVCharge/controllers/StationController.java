@@ -141,7 +141,7 @@ public class StationController {
             return ResponseEntity.badRequest().body(errors);
         }
 
-        List<StationResponse> result = stationService.filterStations(filterRequest);
+        Map<String, List<StationResponse>> result = stationService.filterStationsWithTop(filterRequest);
         return ResponseEntity.ok(result);
     }
 }

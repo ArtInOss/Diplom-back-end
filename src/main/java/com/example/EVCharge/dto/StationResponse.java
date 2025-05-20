@@ -14,6 +14,7 @@ public class StationResponse {
     private StationStatus status;
     private double latitude;
     private double longitude;
+    private Double distanceKm;
 
     // ✅ Пустой конструктор
     public StationResponse() {
@@ -46,6 +47,10 @@ public class StationResponse {
     public StationStatus getStatus() { return status; }
     public double getLatitude() { return latitude; }
     public double getLongitude() { return longitude; }
+    public Double getDistanceKm() {
+        return distanceKm;
+    }
+
 
     // ✅ Сеттеры
     public void setId(Long id) { this.id = id; }
@@ -58,4 +63,9 @@ public class StationResponse {
     public void setStatus(StationStatus status) { this.status = status; }
     public void setLatitude(double latitude) { this.latitude = latitude; }
     public void setLongitude(double longitude) { this.longitude = longitude; }
+
+
+    public void setDistanceKm(Double distanceKm) {
+        this.distanceKm = distanceKm;
+    }
 }
