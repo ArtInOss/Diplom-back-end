@@ -1,8 +1,9 @@
 package com.example.EVCharge.dto;
 
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
-
+import jakarta.validation.constraints.Digits;
 import java.util.List;
 
 public class StationFilterRequest {
@@ -12,18 +13,23 @@ public class StationFilterRequest {
 
     @NotNull(message = "Потужність повинна бути вказана")
     @Min(value = 1, message = "Потужність повинна бути не менше 1 кВт")
+    @Digits(integer = 4, fraction = 0, message = "Потужність повинна бути цілим числом")
     private Integer minPower;
 
     @NotNull(message = "Ціна повинна бути вказана")
-    @Min(value = 1, message = "Ціна повинна бути більше 0")
-    private Integer maxPricePerKwh;
+    @DecimalMin(value = "0.1", message = "Ціна повинна бути більше 0")
+    @Digits(integer = 4, fraction = 1, message = "Ціна повинна мати не більше 1 знаку після коми")
+    private Double maxPricePerKwh;
 
     @NotNull(message = "Запас ходу повинен бути вказаний")
     @Min(value = 1, message = "Запас ходу повинен бути більше 0 км")
+    @Digits(integer = 4, fraction = 0, message = "Запас ходу повинен бути цілим числом")
     private Integer rangeKm;
 
     private Double userLat;
     private Double userLng;
+
+
 
     // Геттеры и сеттеры
     public List<String> getConnectors() {
@@ -50,11 +56,11 @@ public class StationFilterRequest {
         this.minPower = minPower;
     }
 
-    public Integer getMaxPricePerKwh() {
+    public Double getMaxPricePerKwh() {
         return maxPricePerKwh;
     }
 
-    public void setMaxPricePerKwh(Integer maxPricePerKwh) {
+    public void setMaxPricePerKwh(Double  maxPricePerKwh) {
         this.maxPricePerKwh = maxPricePerKwh;
     }
 
