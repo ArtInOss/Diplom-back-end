@@ -4,6 +4,7 @@ import com.example.EVCharge.dto.StationFilterRequest;
 import com.example.EVCharge.dto.StationResponse;
 import com.example.EVCharge.models.Station;
 import com.example.EVCharge.repository.StationRepository;
+import com.example.EVCharge.service.StationUpdateBroadcaster;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +24,9 @@ public class StationService {
     @Autowired
     private StationRepository stationRepository;
 
+    @Autowired
+    private StationUpdateBroadcaster updateBroadcaster;
+
     @Value("${google.api.key}")
     private String googleApiKey;
 
@@ -40,38 +44,36 @@ public class StationService {
         if (stationRepository.existsByLocationName(station.getLocationName())) {
             throw new RuntimeException("Станція з такою назвою вже існує!");
         }
-
         if (station.getConnectors() == null || station.getConnectors().trim().isEmpty()) {
             throw new RuntimeException("Потрібно вказати хоча б один конектор.");
         }
-
         validateConnectors(station.getConnectors());
-
         if (stationRepository.existsByLatitudeAndLongitude(station.getLatitude(), station.getLongitude())) {
             throw new RuntimeException("Станція з такими координатами вже існує!");
         }
-
-        return stationRepository.save(station);
+        Station saved = stationRepository.save(station);
+        updateBroadcaster.broadcastUpdate();
+        return saved;
     }
 
     public void deleteStation(Long id) {
         stationRepository.deleteById(id);
+        updateBroadcaster.broadcastUpdate();
+
     }
 
     public Station updateStation(Long id, Station updatedStation) {
-        return stationRepository.findById(id)
+        Station result = stationRepository.findById(id)
                 .map(existingStation -> {
                     if (!updatedStation.getLocationName().equalsIgnoreCase(existingStation.getLocationName()) &&
                             stationRepository.existsByLocationName(updatedStation.getLocationName())) {
                         throw new RuntimeException("Станція з такою назвою вже існує!");
                     }
-
                     if ((updatedStation.getLatitude() != existingStation.getLatitude() ||
                             updatedStation.getLongitude() != existingStation.getLongitude()) &&
                             stationRepository.existsByLatitudeAndLongitude(updatedStation.getLatitude(), updatedStation.getLongitude())) {
                         throw new RuntimeException("Станція з такими координатами вже існує!");
                     }
-
                     validateConnectors(updatedStation.getConnectors());
 
                     existingStation.setLocationName(updatedStation.getLocationName());
@@ -83,10 +85,12 @@ public class StationService {
                     existingStation.setStatus(updatedStation.getStatus());
                     existingStation.setLatitude(updatedStation.getLatitude());
                     existingStation.setLongitude(updatedStation.getLongitude());
-
                     return stationRepository.save(existingStation);
                 })
                 .orElseThrow(() -> new RuntimeException("Станцію не знайдено"));
+
+        updateBroadcaster.broadcastUpdate();
+        return result;
     }
 
     private void validateConnectors(String connectors) {
@@ -94,18 +98,16 @@ public class StationService {
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
                 .collect(Collectors.toList());
-
         if (list.isEmpty()) {
             throw new RuntimeException("Потрібно вказати хоча б один валідний конектор.");
         }
-
         for (String connector : list) {
-            String upper = connector.toUpperCase();
-            if (!ALLOWED_CONNECTORS.contains(upper)) {
+            if (!ALLOWED_CONNECTORS.contains(connector.toUpperCase())) {
                 throw new RuntimeException("Недопустимий тип конектора: " + connector);
             }
         }
     }
+
 
     private double calculateDistanceKm(double lat1, double lon1, double lat2, double lon2) {
         final int EARTH_RADIUS_KM = 6371;
