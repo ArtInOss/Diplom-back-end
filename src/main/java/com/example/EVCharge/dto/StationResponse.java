@@ -15,12 +15,12 @@ public class StationResponse {
     private double latitude;
     private double longitude;
     private Double distanceKm;
+    private Integer travelTimeSeconds; // 🆕 добавлено поле
 
     // ✅ Пустой конструктор
-    public StationResponse() {
-    }
+    public StationResponse() {}
 
-    // ✅ Конструктор со всеми параметрами (оставь как есть)
+    // ✅ Конструктор со всеми параметрами (travelTime опционально добавляется отдельно)
     public StationResponse(Long id, String locationName, String address, int powerKw,
                            String connectors, String manufacturer, double pricePerKwh,
                            StationStatus status, double latitude, double longitude) {
@@ -47,10 +47,8 @@ public class StationResponse {
     public StationStatus getStatus() { return status; }
     public double getLatitude() { return latitude; }
     public double getLongitude() { return longitude; }
-    public Double getDistanceKm() {
-        return distanceKm;
-    }
-
+    public Double getDistanceKm() { return distanceKm; }
+    public Integer getTravelTimeSeconds() { return travelTimeSeconds; }
 
     // ✅ Сеттеры
     public void setId(Long id) { this.id = id; }
@@ -63,9 +61,6 @@ public class StationResponse {
     public void setStatus(StationStatus status) { this.status = status; }
     public void setLatitude(double latitude) { this.latitude = latitude; }
     public void setLongitude(double longitude) { this.longitude = longitude; }
-
-
-    public void setDistanceKm(Double distanceKm) {
-        this.distanceKm = distanceKm;
-    }
+    public void setDistanceKm(Double distanceKm) { this.distanceKm = distanceKm; }
+    public void setTravelTimeSeconds(Integer travelTimeSeconds) { this.travelTimeSeconds = travelTimeSeconds; }
 }

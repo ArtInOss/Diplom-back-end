@@ -1,5 +1,4 @@
 package com.example.EVCharge.controllers;
-
 import com.example.EVCharge.dto.StationFilterRequest;
 import com.example.EVCharge.dto.StationRequest;
 import com.example.EVCharge.dto.StationResponse;
@@ -144,4 +143,5 @@ public class StationController {
         Map<String, List<StationResponse>> result = stationService.filterStationsWithTop(filterRequest);
         return ResponseEntity.ok(result);
     }
+
 }

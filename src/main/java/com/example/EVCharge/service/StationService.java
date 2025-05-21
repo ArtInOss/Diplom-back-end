@@ -4,9 +4,16 @@ import com.example.EVCharge.dto.StationFilterRequest;
 import com.example.EVCharge.dto.StationResponse;
 import com.example.EVCharge.models.Station;
 import com.example.EVCharge.repository.StationRepository;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -16,7 +23,9 @@ public class StationService {
     @Autowired
     private StationRepository stationRepository;
 
-    // ✅ Допустимі типи конекторів
+    @Value("${google.api.key}")
+    private String googleApiKey;
+
     private static final Set<String> ALLOWED_CONNECTORS = Set.of("CCS2", "CHADEMO", "GB/T");
 
     public List<Station> getAllStations() {
@@ -63,7 +72,6 @@ public class StationService {
                         throw new RuntimeException("Станція з такими координатами вже існує!");
                     }
 
-                    // ✅ Валідація конекторів
                     validateConnectors(updatedStation.getConnectors());
 
                     existingStation.setLocationName(updatedStation.getLocationName());
@@ -81,7 +89,6 @@ public class StationService {
                 .orElseThrow(() -> new RuntimeException("Станцію не знайдено"));
     }
 
-    // 🔍 Перевірка валідності всіх конекторів
     private void validateConnectors(String connectors) {
         List<String> list = Arrays.stream(connectors.split(","))
                 .map(String::trim)
@@ -100,77 +107,18 @@ public class StationService {
         }
     }
 
-    // ✅ Новый метод: фильтрация по фильтрам с формы
-    public List<StationResponse> filterStations(StationFilterRequest filter) {
-        List<Station> filtered = stationRepository.findAll().stream()
-                .filter(station -> {
-                    // фильтрация по коннекторам
-                    if (filter.getConnectors() != null && !filter.getConnectors().isEmpty()) {
-                        boolean matches = filter.getConnectors().stream()
-                                .anyMatch(conn -> station.getConnectors().toUpperCase().contains(conn.toUpperCase()));
-                        if (!matches) return false;
-                    }
-
-                    // фильтрация по производителям
-                    if (filter.getManufacturers() != null && !filter.getManufacturers().isEmpty()) {
-                        if (!filter.getManufacturers().contains(station.getManufacturer())) return false;
-                    }
-
-                    // фильтрация по мощности
-                    if (filter.getMinPower() != null && station.getPowerKw() < filter.getMinPower()) return false;
-
-                    // фильтрация по цене
-                    if (filter.getMaxPricePerKwh() != null && station.getPricePerKwh() > filter.getMaxPricePerKwh())
-                        return false;
-
-                    return true;
-                })
-                .collect(Collectors.toList());
-
-        // Фильтрация по расстоянию с учетом запаса хода
-        List<Station> reachable = filtered;
-        if (filter.getUserLat() != null && filter.getUserLng() != null && filter.getRangeKm() != null) {
-            final double lat = filter.getUserLat();
-            final double lng = filter.getUserLng();
-            final int rangeKm = filter.getRangeKm();
-            final double correctionFactor = 1.2;
-
-            reachable = filtered.stream()
-                    .filter(station -> {
-                        double distance = calculateDistanceKm(lat, lng, station.getLatitude(), station.getLongitude());
-                        return distance * correctionFactor <= rangeKm;
-                    })
-                    .collect(Collectors.toList());
-
-            // Если есть координаты — применяем VSM
-            return findTopStationsByVSM(reachable, lat, lng);
-        }
-
-        // Если координаты не заданы — просто вернуть отфильтрованные станции без ранжирования
-        return reachable.stream()
-                .map(this::mapToStationResponse)
-                .collect(Collectors.toList());
-    }
-
-
     private double calculateDistanceKm(double lat1, double lon1, double lat2, double lon2) {
         final int EARTH_RADIUS_KM = 6371;
-
         double dLat = Math.toRadians(lat2 - lat1);
         double dLon = Math.toRadians(lon2 - lon1);
         double rLat1 = Math.toRadians(lat1);
         double rLat2 = Math.toRadians(lat2);
-
         double a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
                 Math.sin(dLon / 2) * Math.sin(dLon / 2) * Math.cos(rLat1) * Math.cos(rLat2);
-
         double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
         return EARTH_RADIUS_KM * c;
     }
 
-
-    // ✅ Преобразование Station → StationResponse
     private StationResponse mapToStationResponse(Station station) {
         StationResponse response = new StationResponse();
         response.setId(station.getId());
@@ -189,6 +137,7 @@ public class StationService {
     private static class ScoredStation {
         Station station;
         double distanceKm;
+        Double travelTimeSeconds;
         double score;
 
         public ScoredStation(Station station, double distanceKm) {
@@ -196,49 +145,13 @@ public class StationService {
             this.distanceKm = distanceKm;
         }
 
-    }
-    public List<StationResponse> findTopStationsByVSM(List<Station> stations, double userLat, double userLng) {
-        List<ScoredStation> scoredList = new ArrayList<>();
-
-        for (Station station : stations) {
-            double distance = calculateDistanceKm(userLat, userLng, station.getLatitude(), station.getLongitude());
-            scoredList.add(new ScoredStation(station, distance));
+        public ScoredStation(Station station, double distanceKm, double travelTimeSeconds) {
+            this.station = station;
+            this.distanceKm = distanceKm;
+            this.travelTimeSeconds = travelTimeSeconds;
         }
-
-        // Нормализация — находим мин/макс
-        double maxPower = scoredList.stream().mapToDouble(s -> s.station.getPowerKw()).max().orElse(1);
-        double minPower = scoredList.stream().mapToDouble(s -> s.station.getPowerKw()).min().orElse(0);
-        double maxPrice = scoredList.stream().mapToDouble(s -> s.station.getPricePerKwh()).max().orElse(1);
-        double minPrice = scoredList.stream().mapToDouble(s -> s.station.getPricePerKwh()).min().orElse(0);
-        double maxDist = scoredList.stream().mapToDouble(s -> s.distanceKm).max().orElse(1);
-        double minDist = scoredList.stream().mapToDouble(s -> s.distanceKm).min().orElse(0);
-
-        // Веса (можно сделать настраиваемыми)
-        double wPower = 0.33;
-        double wPrice = 0.33;
-        double wDistance = 0.34;
-
-        for (ScoredStation s : scoredList) {
-            // нормализуем критерии
-            double normPower = (s.station.getPowerKw() - minPower) / (maxPower - minPower + 0.001); // чем выше — тем лучше
-            double normPrice = (maxPrice - s.station.getPricePerKwh()) / (maxPrice - minPrice + 0.001); // чем ниже — тем лучше
-            double normDist = (maxDist - s.distanceKm) / (maxDist - minDist + 0.001); // чем ближе — тем лучше
-
-            // итоговый скор
-            s.score = wPower * normPower + wPrice * normPrice + wDistance * normDist;
-        }
-
-        // Сортировка по убыванию и выбор топ-5
-        return scoredList.stream()
-                .sorted((a, b) -> Double.compare(b.score, a.score))
-                .limit(10)
-                .map(s -> {
-                    StationResponse r = mapToStationResponse(s.station);
-                    r.setDistanceKm(s.distanceKm); // добавь это поле в DTO
-                    return r;
-                })
-                .collect(Collectors.toList());
     }
+
     public Map<String, List<StationResponse>> filterStationsWithTop(StationFilterRequest filter) {
         List<Station> filtered = stationRepository.findAll().stream()
                 .filter(station -> {
@@ -251,10 +164,10 @@ public class StationService {
                         if (!filter.getManufacturers().contains(station.getManufacturer())) return false;
                     }
                     if (filter.getMinPower() != null && station.getPowerKw() < filter.getMinPower()) return false;
-                    if (filter.getMaxPricePerKwh() != null && station.getPricePerKwh() > filter.getMaxPricePerKwh()) return false;
+                    if (filter.getMaxPricePerKwh() != null && station.getPricePerKwh() > filter.getMaxPricePerKwh())
+                        return false;
                     return true;
-                })
-                .collect(Collectors.toList());
+                }).collect(Collectors.toList());
 
         List<Station> reachable = filtered;
         List<StationResponse> allFilteredResponses;
@@ -269,32 +182,158 @@ public class StationService {
                     .filter(station -> {
                         double distance = calculateDistanceKm(lat, lng, station.getLatitude(), station.getLongitude());
                         return distance * correctionFactor <= rangeKm;
-                    })
-                    .collect(Collectors.toList());
+                    }).collect(Collectors.toList());
 
-            // ✅ Вся фильтрация до WSM
             allFilteredResponses = reachable.stream()
                     .map(this::mapToStationResponse)
                     .collect(Collectors.toList());
 
-            // ✅ Топ-10 по WSM
-            List<StationResponse> topStations = findTopStationsByVSM(reachable, lat, lng);
+            List<StationResponse> top10 = findTopStationsByVSM(reachable, lat, lng);
+            List<StationResponse> finalTop5 = findTopStationsByVSMWithTravelTime(top10, lat, lng, rangeKm);
 
-            // ✅ Возвращаем два списка
             Map<String, List<StationResponse>> result = new HashMap<>();
             result.put("allStations", allFilteredResponses);
-            result.put("topStations", topStations);
+            result.put("topStations", finalTop5);
             return result;
         }
 
-        // Если координаты не заданы — просто возвращаем отфильтрованные станции
         allFilteredResponses = reachable.stream()
                 .map(this::mapToStationResponse)
                 .collect(Collectors.toList());
 
         Map<String, List<StationResponse>> result = new HashMap<>();
         result.put("allStations", allFilteredResponses);
-        result.put("topStations", new ArrayList<>()); // Пустой список
+        result.put("topStations", new ArrayList<>());
         return result;
+    }
+    public List<StationResponse> findTopStationsByVSM(List<Station> stations, double userLat, double userLng) {
+        List<ScoredStation> scoredList = new ArrayList<>();
+        for (Station station : stations) {
+            double distance = calculateDistanceKm(userLat, userLng, station.getLatitude(), station.getLongitude());
+            scoredList.add(new ScoredStation(station, distance));
+        }
+        double maxPower = scoredList.stream().mapToDouble(s -> s.station.getPowerKw()).max().orElse(1);
+        double minPower = scoredList.stream().mapToDouble(s -> s.station.getPowerKw()).min().orElse(0);
+        double maxPrice = scoredList.stream().mapToDouble(s -> s.station.getPricePerKwh()).max().orElse(1);
+        double minPrice = scoredList.stream().mapToDouble(s -> s.station.getPricePerKwh()).min().orElse(0);
+        double maxDist = scoredList.stream().mapToDouble(s -> s.distanceKm).max().orElse(1);
+        double minDist = scoredList.stream().mapToDouble(s -> s.distanceKm).min().orElse(0);
+
+        double wPower = 0.33, wPrice = 0.33, wDistance = 0.34;
+
+        for (ScoredStation s : scoredList) {
+            double normPower = (s.station.getPowerKw() - minPower) / (maxPower - minPower + 0.001);
+            double normPrice = (maxPrice - s.station.getPricePerKwh()) / (maxPrice - minPrice + 0.001);
+            double normDist = (maxDist - s.distanceKm) / (maxDist - minDist + 0.001);
+            s.score = wPower * normPower + wPrice * normPrice + wDistance * normDist;
+        }
+
+        return scoredList.stream()
+                .sorted((a, b) -> Double.compare(b.score, a.score))
+                .limit(10)
+                .map(s -> {
+                    StationResponse r = mapToStationResponse(s.station);
+                    r.setDistanceKm(s.distanceKm);
+                    return r;
+                }).collect(Collectors.toList());
+    }
+
+    public List<StationResponse> findTopStationsByVSMWithTravelTime(List<StationResponse> top10, double userLat, double userLng, Integer rangeKm) {
+        try {
+            String destinations = top10.stream()
+                    .map(s -> s.getLatitude() + "," + s.getLongitude())
+                    .collect(Collectors.joining("|"));
+            String origin = userLat + "," + userLng;
+
+            String urlStr = "https://maps.googleapis.com/maps/api/distancematrix/json" +
+                    "?origins=" + origin +
+                    "&destinations=" + URLEncoder.encode(destinations, StandardCharsets.UTF_8) +
+                    "&departure_time=now" +
+                    "&key=" + googleApiKey;
+
+            URL url = new URL(urlStr);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode root = mapper.readTree(conn.getInputStream());
+
+            JsonNode elements = root.get("rows").get(0).get("elements");
+
+            List<ScoredStation> scoredStations = new ArrayList<>();
+
+            for (int i = 0; i < top10.size(); i++) {
+                StationResponse r = top10.get(i);
+                JsonNode el = elements.get(i);
+                if (el == null || el.get("status") == null || !el.get("status").asText().equals("OK")) {
+                    System.out.println("❌ Google API не вернул корректный елемент для станции: " + r.getLocationName());
+                    continue;
+                }
+
+                Station station = new Station();
+                station.setLocationName(r.getLocationName());
+                station.setLatitude(r.getLatitude());
+                station.setLongitude(r.getLongitude());
+                station.setPowerKw(r.getPowerKw());
+                station.setPricePerKwh(r.getPricePerKwh());
+                station.setManufacturer(r.getManufacturer());
+                station.setAddress(r.getAddress());
+                station.setConnectors(r.getConnectors());
+
+                int distanceMeters = el.get("distance").get("value").asInt();
+                double distanceKm = distanceMeters / 1000.0;
+                int durationSec = el.get("duration_in_traffic").get("value").asInt();
+
+                // ❗ Исключаем станцию, если превышает запас хода по маршруту
+                if (rangeKm != null && distanceKm > rangeKm) continue;
+
+                scoredStations.add(new ScoredStation(station, distanceKm, durationSec));
+            }
+
+            List<Station> top5 = runFinalVSM(scoredStations);
+
+            return scoredStations.stream()
+                    .filter(s -> top5.contains(s.station))
+                    .sorted(Comparator.comparingInt(s -> top5.indexOf(s.station)))
+                    .map(s -> {
+                        StationResponse r = mapToStationResponse(s.station);
+                        r.setDistanceKm(s.distanceKm);
+                        r.setTravelTimeSeconds(s.travelTimeSeconds != null ? s.travelTimeSeconds.intValue() : null);
+                        return r;
+                    })
+                    .collect(Collectors.toList());
+
+        } catch (Exception e) {
+            throw new RuntimeException("Помилка при запиті до Google API: " + e.getMessage(), e);
+        }
+    }
+
+    private List<Station> runFinalVSM(List<ScoredStation> scoredStations) {
+        if (scoredStations == null || scoredStations.isEmpty()) return Collections.emptyList();
+
+        double minPower = scoredStations.stream().mapToDouble(s -> s.station.getPowerKw()).min().orElse(1);
+        double maxPower = scoredStations.stream().mapToDouble(s -> s.station.getPowerKw()).max().orElse(1);
+        double minPrice = scoredStations.stream().mapToDouble(s -> s.station.getPricePerKwh()).min().orElse(1);
+        double maxPrice = scoredStations.stream().mapToDouble(s -> s.station.getPricePerKwh()).max().orElse(1);
+        double minDistance = scoredStations.stream().mapToDouble(s -> s.distanceKm).min().orElse(1);
+        double maxDistance = scoredStations.stream().mapToDouble(s -> s.distanceKm).max().orElse(1);
+        double minTime = scoredStations.stream().mapToDouble(s -> s.travelTimeSeconds != null ? s.travelTimeSeconds : 0).min().orElse(1);
+        double maxTime = scoredStations.stream().mapToDouble(s -> s.travelTimeSeconds != null ? s.travelTimeSeconds : 0).max().orElse(1);
+
+        double wPower = 0.2, wPrice = 0.2, wDistance = 0.2, wTime = 0.4;
+
+        for (ScoredStation s : scoredStations) {
+            double normPower = (s.station.getPowerKw() - minPower) / (maxPower - minPower + 1e-6);
+            double normPrice = 1 - ((s.station.getPricePerKwh() - minPrice) / (maxPrice - minPrice + 1e-6));
+            double normDistance = 1 - ((s.distanceKm - minDistance) / (maxDistance - minDistance + 1e-6));
+            double normTime = 1 - (((s.travelTimeSeconds != null ? s.travelTimeSeconds : maxTime) - minTime) / (maxTime - minTime + 1e-6));
+            s.score = wPower * normPower + wPrice * normPrice + wDistance * normDistance + wTime * normTime;
+        }
+
+        return scoredStations.stream()
+                .sorted(Comparator.comparingDouble(s -> -s.score))
+                .limit(5)
+                .map(s -> s.station)
+                .collect(Collectors.toList());
     }
 }
