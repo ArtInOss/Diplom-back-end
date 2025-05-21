@@ -183,12 +183,26 @@ public class StationService {
                         double distance = calculateDistanceKm(lat, lng, station.getLatitude(), station.getLongitude());
                         return distance * correctionFactor <= rangeKm;
                     }).collect(Collectors.toList());
+            if (reachable.isEmpty()) {
+                Map<String, List<StationResponse>> result = new HashMap<>();
+                result.put("allStations", new ArrayList<>());
+                result.put("topStations", new ArrayList<>());
+                return result;
+            }
 
             allFilteredResponses = reachable.stream()
                     .map(this::mapToStationResponse)
                     .collect(Collectors.toList());
 
             List<StationResponse> top10 = findTopStationsByVSM(reachable, lat, lng);
+
+            if (top10.isEmpty()) {
+                Map<String, List<StationResponse>> result = new HashMap<>();
+                result.put("allStations", allFilteredResponses);
+                result.put("topStations", new ArrayList<>());
+                return result;
+            }
+
             List<StationResponse> finalTop5 = findTopStationsByVSMWithTravelTime(top10, lat, lng, rangeKm);
 
             Map<String, List<StationResponse>> result = new HashMap<>();
@@ -206,6 +220,7 @@ public class StationService {
         result.put("topStations", new ArrayList<>());
         return result;
     }
+
     public List<StationResponse> findTopStationsByVSM(List<Station> stations, double userLat, double userLng) {
         List<ScoredStation> scoredList = new ArrayList<>();
         for (Station station : stations) {
@@ -265,8 +280,9 @@ public class StationService {
             for (int i = 0; i < top10.size(); i++) {
                 StationResponse r = top10.get(i);
                 JsonNode el = elements.get(i);
-                if (el == null || el.get("status") == null || !el.get("status").asText().equals("OK")) {
-                    System.out.println("❌ Google API не вернул корректный елемент для станции: " + r.getLocationName());
+                if (el == null || el.get("status") == null || !"OK".equals(el.get("status").asText()) ||
+                        el.get("distance") == null || el.get("duration_in_traffic") == null) {
+                    System.out.println("❌ Google API не вернул расстояние или время в пути для станции: " + r.getLocationName());
                     continue;
                 }
 
