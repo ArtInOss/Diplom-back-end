@@ -2,6 +2,7 @@ package com.example.EVCharge.service;
 
 import com.example.EVCharge.dto.StationFilterRequest;
 import com.example.EVCharge.dto.StationResponse;
+import com.example.EVCharge.mapper.StationMapper;
 import com.example.EVCharge.models.Station;
 import com.example.EVCharge.repository.StationRepository;
 import com.example.EVCharge.service.StationUpdateBroadcaster;
@@ -17,10 +18,17 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+
+
+
 
 @Service
 public class StationService {
-
+    @Autowired
+    private StationMapper stationMapper;
     @Autowired
     private StationRepository stationRepository;
 
@@ -29,7 +37,7 @@ public class StationService {
 
     @Value("${google.api.key}")
     private String googleApiKey;
-
+    private static final Logger logger = LoggerFactory.getLogger(StationService.class);
     private static final Set<String> ALLOWED_CONNECTORS = Set.of("CCS2", "CHADEMO", "GB/T");
 
     public List<Station> getAllStations() {
@@ -121,20 +129,7 @@ public class StationService {
         return EARTH_RADIUS_KM * c;
     }
 
-    private StationResponse mapToStationResponse(Station station) {
-        StationResponse response = new StationResponse();
-        response.setId(station.getId());
-        response.setLocationName(station.getLocationName());
-        response.setLatitude(station.getLatitude());
-        response.setLongitude(station.getLongitude());
-        response.setConnectors(station.getConnectors());
-        response.setPowerKw(station.getPowerKw());
-        response.setPricePerKwh(station.getPricePerKwh());
-        response.setManufacturer(station.getManufacturer());
-        response.setStatus(station.getStatus());
-        response.setAddress(station.getAddress());
-        return response;
-    }
+
 
     private static class ScoredStation {
         Station station;
@@ -155,7 +150,18 @@ public class StationService {
     }
 
     public Map<String, List<StationResponse>> filterStationsWithTop(StationFilterRequest filter) {
-        List<Station> filtered = stationRepository.findAll().stream()
+        List<Station> filtered = filterByAttributes(filter);
+        List<Station> reachable = filterByRange(filtered, filter);
+        List<StationResponse> allFilteredResponses = buildAllResponses(reachable);
+        List<StationResponse> topStations = runTopStationSelection(reachable, filter);
+
+        Map<String, List<StationResponse>> result = new HashMap<>();
+        result.put("allStations", allFilteredResponses);
+        result.put("topStations", topStations);
+        return result;
+    }
+    private List<Station> filterByAttributes(StationFilterRequest filter) {
+        return stationRepository.findAll().stream()
                 .filter(station -> {
                     if (filter.getConnectors() != null && !filter.getConnectors().isEmpty()) {
                         boolean matches = filter.getConnectors().stream()
@@ -166,62 +172,43 @@ public class StationService {
                         if (!filter.getManufacturers().contains(station.getManufacturer())) return false;
                     }
                     if (filter.getMinPower() != null && station.getPowerKw() < filter.getMinPower()) return false;
-                    if (filter.getMaxPricePerKwh() != null && station.getPricePerKwh() > filter.getMaxPricePerKwh())
-                        return false;
+                    if (filter.getMaxPricePerKwh() != null && station.getPricePerKwh() > filter.getMaxPricePerKwh()) return false;
                     return true;
-                }).collect(Collectors.toList());
+                })
+                .collect(Collectors.toList());
+    }
+    private List<Station> filterByRange(List<Station> stations, StationFilterRequest filter) {
+        if (filter.getUserLat() == null || filter.getUserLng() == null || filter.getRangeKm() == null) {
+            return stations;
+        }
+        double lat = filter.getUserLat();
+        double lng = filter.getUserLng();
+        int rangeKm = filter.getRangeKm();
+        double correctionFactor = 1.2;
 
-        List<Station> reachable = filtered;
-        List<StationResponse> allFilteredResponses;
-
-        if (filter.getUserLat() != null && filter.getUserLng() != null && filter.getRangeKm() != null) {
-            final double lat = filter.getUserLat();
-            final double lng = filter.getUserLng();
-            final int rangeKm = filter.getRangeKm();
-            final double correctionFactor = 1.2;
-
-            reachable = filtered.stream()
-                    .filter(station -> {
-                        double distance = calculateDistanceKm(lat, lng, station.getLatitude(), station.getLongitude());
-                        return distance * correctionFactor <= rangeKm;
-                    }).collect(Collectors.toList());
-            if (reachable.isEmpty()) {
-                Map<String, List<StationResponse>> result = new HashMap<>();
-                result.put("allStations", new ArrayList<>());
-                result.put("topStations", new ArrayList<>());
-                return result;
-            }
-
-            allFilteredResponses = reachable.stream()
-                    .map(this::mapToStationResponse)
-                    .collect(Collectors.toList());
-
-            List<StationResponse> top10 = findTopStationsByVSM(reachable, lat, lng);
-
-            if (top10.isEmpty()) {
-                Map<String, List<StationResponse>> result = new HashMap<>();
-                result.put("allStations", allFilteredResponses);
-                result.put("topStations", new ArrayList<>());
-                return result;
-            }
-
-            List<StationResponse> finalTop5 = findTopStationsByVSMWithTravelTime(top10, lat, lng, rangeKm);
-
-            Map<String, List<StationResponse>> result = new HashMap<>();
-            result.put("allStations", allFilteredResponses);
-            result.put("topStations", finalTop5);
-            return result;
+        return stations.stream()
+                .filter(station -> {
+                    double distance = calculateDistanceKm(lat, lng, station.getLatitude(), station.getLongitude());
+                    return distance * correctionFactor <= rangeKm;
+                })
+                .collect(Collectors.toList());
+    }
+    private List<StationResponse> buildAllResponses(List<Station> reachable) {
+        return reachable.stream()
+                .map(stationMapper::toResponse)
+                .collect(Collectors.toList());
+    }
+    private List<StationResponse> runTopStationSelection(List<Station> reachable, StationFilterRequest filter) {
+        if (filter.getUserLat() == null || filter.getUserLng() == null || filter.getRangeKm() == null) {
+            return new ArrayList<>();
         }
 
-        allFilteredResponses = reachable.stream()
-                .map(this::mapToStationResponse)
-                .collect(Collectors.toList());
+        List<StationResponse> top10 = findTopStationsByVSM(reachable, filter.getUserLat(), filter.getUserLng());
+        if (top10.isEmpty()) return new ArrayList<>();
 
-        Map<String, List<StationResponse>> result = new HashMap<>();
-        result.put("allStations", allFilteredResponses);
-        result.put("topStations", new ArrayList<>());
-        return result;
+        return findTopStationsByVSMWithTravelTime(top10, filter.getUserLat(), filter.getUserLng(), filter.getRangeKm());
     }
+
 
     public List<StationResponse> findTopStationsByVSM(List<Station> stations, double userLat, double userLng) {
         List<ScoredStation> scoredList = new ArrayList<>();
@@ -249,7 +236,7 @@ public class StationService {
                 .sorted((a, b) -> Double.compare(b.score, a.score))
                 .limit(10)
                 .map(s -> {
-                    StationResponse r = mapToStationResponse(s.station);
+                    StationResponse r = stationMapper.toResponse(s.station);
                     r.setDistanceKm(s.distanceKm);
                     return r;
                 }).collect(Collectors.toList());
@@ -284,7 +271,7 @@ public class StationService {
                 JsonNode el = elements.get(i);
                 if (el == null || el.get("status") == null || !"OK".equals(el.get("status").asText()) ||
                         el.get("distance") == null || el.get("duration_in_traffic") == null) {
-                    System.out.println("❌ Google API не вернул расстояние или время в пути для станции: " + r.getLocationName());
+                    logger.warn("❌ Google API не вернул расстояние или время в пути для станции: {}", r.getLocationName());
                     continue;
                 }
 
@@ -314,7 +301,7 @@ public class StationService {
                     .filter(s -> top5.contains(s.station))
                     .sorted(Comparator.comparingInt(s -> top5.indexOf(s.station)))
                     .map(s -> {
-                        StationResponse r = mapToStationResponse(s.station);
+                        StationResponse r = stationMapper.toResponse(s.station);
                         r.setDistanceKm(s.distanceKm);
                         r.setTravelTimeSeconds(s.travelTimeSeconds != null ? s.travelTimeSeconds.intValue() : null);
                         return r;
@@ -354,4 +341,12 @@ public class StationService {
                 .map(s -> s.station)
                 .collect(Collectors.toList());
     }
-}
+    public List<StationResponse> getAllStationResponses() {
+        return stationRepository.findAll()
+                .stream()
+                .map(stationMapper::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    }
+

@@ -12,6 +12,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.Map;
 
 @RestController
@@ -29,14 +30,16 @@ public class UserController {
         User user = profileService.getProfile(username);
 
         if (user == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "Користувача не знайдено"));
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("message", "Користувача не знайдено"));
         }
 
-        return ResponseEntity.ok(Map.of(
-                "firstName", user.getFirstName(),
-                "lastName", user.getLastName(),
-                "username", user.getUsername()
-        ));
+        Map<String, Object> result = new HashMap<>();
+        result.put("firstName", user.getFirstName());
+        result.put("lastName", user.getLastName());
+        result.put("username", user.getUsername());
+
+        return ResponseEntity.ok(result);
     }
 
     // 🔐 Доступ тільки для USER

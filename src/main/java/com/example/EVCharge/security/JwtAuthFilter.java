@@ -11,6 +11,8 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -18,6 +20,8 @@ import java.util.List;
 
 @Component
 public class JwtAuthFilter extends OncePerRequestFilter {
+
+    private static final Logger logger = LoggerFactory.getLogger(JwtAuthFilter.class);
 
     @Autowired
     private JwtUtil jwtUtil;
@@ -38,15 +42,15 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 String role = jwtUtil.getRoleFromToken(token);
 
                 // 🟡 ЛОГИ для діагностики
-                System.out.println("JWT username: " + username);
-                System.out.println("JWT role: " + role);
+                logger.info("JWT username: {}", username);
+                logger.info("JWT role: {}", role);
 
                 // Додаємо префікс ROLE_ для ролі
                 List<SimpleGrantedAuthority> authorities =
                         Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role));
 
                 // Ще один лог — перевірка авторитетів
-                System.out.println("Granted Authorities: " + authorities);
+                logger.info("Granted Authorities: {}", authorities);
 
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(
@@ -57,10 +61,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             } else {
-                System.out.println("⚠️ JWT не валідний");
+                logger.warn("⚠️ JWT не валідний");
             }
         } else {
-            System.out.println("🔸 Authorization header is missing or malformed");
+            logger.warn("🔸 Authorization header is missing or malformed");
         }
 
         filterChain.doFilter(request, response);

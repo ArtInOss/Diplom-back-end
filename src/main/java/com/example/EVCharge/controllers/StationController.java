@@ -1,7 +1,9 @@
 package com.example.EVCharge.controllers;
+
 import com.example.EVCharge.dto.StationFilterRequest;
 import com.example.EVCharge.dto.StationRequest;
 import com.example.EVCharge.dto.StationResponse;
+import com.example.EVCharge.mapper.StationMapper;
 import com.example.EVCharge.models.Station;
 import com.example.EVCharge.service.StationService;
 import jakarta.validation.Valid;
@@ -9,7 +11,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 
@@ -25,13 +26,13 @@ public class StationController {
     @Autowired
     private StationService stationService;
 
+    @Autowired
+    private StationMapper stationMapper;
+
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     @GetMapping
     public ResponseEntity<List<StationResponse>> getAllStations() {
-        List<StationResponse> stations = stationService.getAllStations()
-                .stream()
-                .map(this::toResponse)
-                .collect(Collectors.toList());
+        List<StationResponse> stations = stationService.getAllStationResponses();
         return ResponseEntity.ok(stations);
     }
 
@@ -39,7 +40,8 @@ public class StationController {
     @GetMapping("/{id}")
     public ResponseEntity<?> getStationById(@PathVariable Long id) {
         return stationService.getStationById(id)
-                .map(station -> ResponseEntity.ok(toResponse(station)))
+                .map(stationMapper::toResponse)
+                .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -51,16 +53,15 @@ public class StationController {
                     .collect(Collectors.toMap(
                             FieldError::getField,
                             FieldError::getDefaultMessage,
-                            (e1, e2) -> e1 // если дубликаты полей — берём первый
+                            (e1, e2) -> e1
                     ));
             return ResponseEntity.badRequest().body(Map.of("validationErrors", errors));
         }
 
         try {
-            Station station = new Station();
-            applyRequestToStation(station, request);
+            Station station = stationMapper.toEntity(request);
             Station saved = stationService.addStation(station);
-            return ResponseEntity.ok(toResponse(saved));
+            return ResponseEntity.ok(stationMapper.toResponse(saved));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
@@ -80,8 +81,8 @@ public class StationController {
         }
 
         try {
-            Station updated = stationService.updateStation(id, toEntity(request));
-            return ResponseEntity.ok(toResponse(updated));
+            Station updated = stationService.updateStation(id, stationMapper.toEntity(request));
+            return ResponseEntity.ok(stationMapper.toResponse(updated));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
@@ -92,42 +93,6 @@ public class StationController {
     public ResponseEntity<?> deleteStation(@PathVariable Long id) {
         stationService.deleteStation(id);
         return ResponseEntity.ok().build();
-    }
-
-    // 🔄 Mapping: Request DTO → Entity
-    private Station toEntity(StationRequest request) {
-        Station station = new Station();
-        applyRequestToStation(station, request);
-        return station;
-    }
-
-    // 🔄 Mapping: Entity → Response DTO
-    private StationResponse toResponse(Station station) {
-        return new StationResponse(
-                station.getId(),
-                station.getLocationName(),
-                station.getAddress(),
-                station.getPowerKw(),
-                station.getConnectors(),
-                station.getManufacturer(),
-                station.getPricePerKwh(),
-                station.getStatus(),
-                station.getLatitude(),
-                station.getLongitude()
-        );
-    }
-
-    // 🔁 Записати DTO в сутність
-    private void applyRequestToStation(Station station, StationRequest request) {
-        station.setLocationName(request.getLocationName());
-        station.setAddress(request.getAddress());
-        station.setPowerKw(request.getPowerKw());
-        station.setConnectors(request.getConnectors());
-        station.setManufacturer(request.getManufacturer());
-        station.setPricePerKwh(request.getPricePerKwh());
-        station.setStatus(request.getStatus());
-        station.setLatitude(request.getLatitude());
-        station.setLongitude(request.getLongitude());
     }
 
     @PostMapping("/filter")
@@ -143,5 +108,4 @@ public class StationController {
         Map<String, List<StationResponse>> result = stationService.filterStationsWithTop(filterRequest);
         return ResponseEntity.ok(result);
     }
-
 }
