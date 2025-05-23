@@ -158,6 +158,8 @@ public class StationService {
         Map<String, List<StationResponse>> result = new HashMap<>();
         result.put("allStations", allFilteredResponses);
         result.put("topStations", topStations);
+        logger.info("📌 Всього станцій після початкового фільтрування: {}", filtered.size());
+        logger.info("📌 Доступні станції у межах запасу ходу ({} км): {}", filter.getRangeKm(), reachable.size());
         return result;
     }
     private List<Station> filterByAttributes(StationFilterRequest filter) {
@@ -293,9 +295,11 @@ public class StationService {
                 if (rangeKm != null && distanceKm > rangeKm) continue;
 
                 scoredStations.add(new ScoredStation(station, distanceKm, durationSec));
-            }
+
+            } logger.info("📌 Станцій після Google API і запасу ходу: {}", scoredStations.size());
 
             List<Station> top5 = runFinalVSM(scoredStations);
+            logger.info("📌 Фінальний топ-5: {}", top5.size());
 
             return scoredStations.stream()
                     .filter(s -> top5.contains(s.station))
