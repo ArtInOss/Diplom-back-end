@@ -35,13 +35,13 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         String authHeader = request.getHeader("Authorization");
 
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            String token = authHeader.substring(7); // Вирізаємо "Bearer "
+            String token = authHeader.substring(7);
 
             if (jwtUtil.validateToken(token)) {
                 String username = jwtUtil.getUsernameFromToken(token);
                 String role = jwtUtil.getRoleFromToken(token);
 
-                // 🟡 ЛОГИ для діагностики
+
                 logger.info("JWT username: {}", username);
                 logger.info("JWT role: {}", role);
 
@@ -63,8 +63,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             } else {
                 logger.warn("⚠️ JWT не валідний");
             }
-        } else {
-            logger.warn("🔸 Authorization header is missing or malformed");
+
         }
 
         filterChain.doFilter(request, response);

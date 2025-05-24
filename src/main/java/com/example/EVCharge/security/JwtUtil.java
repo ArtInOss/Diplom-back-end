@@ -14,29 +14,29 @@ import java.util.List;
 public class JwtUtil {
 
     @Value("${jwt.secret}")
-    private String secret; // ⚠️ подключаем из application.properties
+    private String secret;
 
     private SecretKey key;
 
-    private final long expirationMs = 3600000; // 1 година
+    private final long expirationMs = 3600000;
 
     @PostConstruct
     public void init() {
-        this.key = Keys.hmacShaKeyFor(secret.getBytes()); // генерируем ключ на основе зафиксированной строки
+        this.key = Keys.hmacShaKeyFor(secret.getBytes()); // генеруємо закритий ключ для підпису токена
     }
 
-    // 🔑 Генерация токена
+    //Генерация токена
     public String generateToken(String username, String role) {
         return Jwts.builder()
                 .setSubject(username)
-                .claim("role", role) // одна роль как строка
+                .claim("role", role)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + expirationMs))
                 .signWith(key)
                 .compact();
     }
 
-    // ✅ Перевірка дійсності токена
+    //Перевірка дійсності токена
     public boolean validateToken(String token) {
         try {
             Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
@@ -46,7 +46,7 @@ public class JwtUtil {
         }
     }
 
-    // 👤 Отримання імені користувача
+    //Отримання імені користувача
     public String getUsernameFromToken(String token) {
         return Jwts.parserBuilder().setSigningKey(key).build()
                 .parseClaimsJws(token)
@@ -54,7 +54,7 @@ public class JwtUtil {
                 .getSubject();
     }
 
-    // 🛡️ Отримання ролі користувача
+    //  Отримання ролі користувача
     public String getRoleFromToken(String token) {
         Object role = Jwts.parserBuilder().setSigningKey(key).build()
                 .parseClaimsJws(token)

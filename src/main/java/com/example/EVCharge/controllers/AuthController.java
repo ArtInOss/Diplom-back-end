@@ -19,7 +19,7 @@ public class AuthController {
     @Autowired
     private AuthService authService;
 
-    // 🔐 Авторизація користувача
+    //  Авторизація користувача
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody UserCredentials credentials, BindingResult result) {
         if (result.hasErrors()) {
@@ -35,7 +35,7 @@ public class AuthController {
         }
     }
 
-    // ✅ Перевірка JWT токена
+    //  Перевірка JWT токена
     @GetMapping("/check")
     public ResponseEntity<?> checkToken(@RequestHeader("Authorization") String authHeader) {
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
