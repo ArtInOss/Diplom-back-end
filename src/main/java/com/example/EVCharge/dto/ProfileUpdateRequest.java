@@ -20,7 +20,7 @@ public class ProfileUpdateRequest {
     @Pattern(regexp = "^[a-zA-Z0-9]+$", message = "Логін може містити тільки латинські літери та цифри")
     private String username;
 
-    // ======== ГЕТТЕРИ І СЕТТЕРИ =========
+
 
     public String getFirstName() {
         return firstName;

@@ -10,34 +10,21 @@ public class Station {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "location_name", nullable = false)
     private String locationName;
-
-    @Column(nullable = false)
     private String address;
-
-    @Column(name = "power_kw", nullable = false)
     private int powerKw;
-
-    @Column(nullable = false)
-    private String connectors; // CSV string like "CCS2,CHAdeMO"
-
-    @Column(nullable = false)
+    private String connectors;
     private String manufacturer;
-
-    @Column(name = "price_per_kwh", nullable = false)
     private double pricePerKwh;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
     private StationStatus status;
-    @Column(nullable = false)
-    private double latitude;
 
-    @Column(nullable = false)
+    private double latitude;
     private double longitude;
 
-    // Геттери і сеттери
+    // Getters and Setters
+
     public Long getId() {
         return id;
     }
@@ -97,18 +84,20 @@ public class Station {
     public void setStatus(StationStatus status) {
         this.status = status;
     }
-    // + геттери та сеттери
+
     public double getLatitude() {
         return latitude;
     }
+
     public void setLatitude(double latitude) {
         this.latitude = latitude;
     }
+
     public double getLongitude() {
         return longitude;
     }
+
     public void setLongitude(double longitude) {
         this.longitude = longitude;
     }
-
 }

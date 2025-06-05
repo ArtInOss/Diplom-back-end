@@ -15,15 +15,14 @@ public class User {
     private String firstName;
     private String lastName;
 
-    @Enumerated(EnumType.STRING)  // Указание, что поле role должно быть типа Enum
-    private Role role;  // Используем Enum для роли
+    @Enumerated(EnumType.STRING)
+    private Role role;
 
-    // Конструктор по умолчанию
+
     public User() {
     }
 
-    // Конструктор с параметрами
-    // Конструктор с параметрами
+
     public User(Long id, String username, String password, String firstName, String lastName, Role role) {
         this.id = id;
         this.username = username;

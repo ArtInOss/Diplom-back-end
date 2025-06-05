@@ -13,12 +13,12 @@ public class RegistrationRequest {
 
     @NotBlank(message = "Пароль не може бути порожнім")
     @Size(min = 6, max = 20, message = "Пароль має містити від 6 до 20 символів")
-    @Pattern(regexp = "^[a-zA-Z0-9]+$", message = "Пароль може містити тільки літери та цифри")
     @Pattern(
             regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)[a-zA-Z\\d]+$",
             message = "Пароль має містити хоча б одну велику літеру, одну маленьку та одну цифру. Без спецсимволів."
     )
     private String password;
+
 
     @NotBlank(message = "Підтвердження паролю не може бути порожнім")
     private String confirmPassword;

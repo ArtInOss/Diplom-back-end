@@ -33,9 +33,9 @@ public class StationRankingService {
         double wPower = 0.33, wPrice = 0.33, wDistance = 0.34;
 
         for (ScoredStation s : scoredList) {
-            double normPower = (s.station.getPowerKw() - minPower) / (maxPower - minPower + 0.001);
-            double normPrice = (maxPrice - s.station.getPricePerKwh()) / (maxPrice - minPrice + 0.001);
-            double normDist = (maxDist - s.distanceKm) / (maxDist - minDist + 0.001);
+            double normPower = (s.station.getPowerKw() - minPower) / (maxPower - minPower + 1e-6);
+            double normPrice = (maxPrice - s.station.getPricePerKwh()) / (maxPrice - minPrice + 1e-6);
+            double normDist = (maxDist - s.distanceKm) / (maxDist - minDist + 1e-6);
             s.score = wPower * normPower + wPrice * normPrice + wDistance * normDist;
         }
 
